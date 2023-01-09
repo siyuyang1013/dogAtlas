@@ -1,0 +1,6 @@
+cellranger count \
+--id=${outputfile} \
+--transcriptome=CLF3.1 \
+--fastqs=${fastqfile} \
+--sample=${outputfile} \
+--expect-cells=10000 --include-introns
