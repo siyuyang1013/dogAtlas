@@ -1,0 +1,4 @@
+cellranger mkref --genome=CLF3.1 \
+                 --fasta=Canis_lupus_familiaris.CanFam3.1.dna_sm.toplevel.fa \
+                 --genes=Canis_lupus_familiaris.CanFam3.1.104.filted.gtf  \
+                 --ref-version=6.1.1
