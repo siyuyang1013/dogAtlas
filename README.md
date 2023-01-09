@@ -9,6 +9,7 @@ cellranger v6.1.1
 scanpy v1.8.1
 
 python v3.8.12
+
 R v4.1.1
 
 monocle3 v0.2.3.0
