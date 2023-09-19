@@ -1,0 +1,103 @@
+# ======================================================
+# This script takes about 2 hours to finish 18 samples
+# =======================================================
+
+import numpy as np
+import pandas as pd
+import scanpy as sc
+import scanpy.external as sce
+import os
+import sys
+
+#修改1
+wd = '/work/yangsiyu/4.dog/04.20220127_2_samples_qc/02.result/01.qc'
+os.chdir(wd)
+datadir = '/work/yangsiyu/4.dog/04.20220127_2_samples_qc/01.cellcount/O6_CR'
+sc.settings.verbosity = 3
+sc.logging.print_header()
+sc.settings.set_figure_params(dpi=600,facecolor='white')
+
+#files.remove('0.ID.txt')
+#files.remove('dirname.txt')
+
+MT_gene_file = open('/home/YANGSIYU/software/cellranger-6.1.1/ref/MT_genes','r')
+MT_genes = [i.replace('\n','') for i in MT_gene_file]
+
+#### 1 Preprocessing ###
+
+sample='O6_CR'
+results_file = './'+sample+'.h5ad'
+dat = sc.read_10x_mtx(datadir,var_names='gene_symbols')
+dat.var_names_make_unique()
+all_genes = dat.var['gene_ids']
+dat.var['mt'] = [(True if i in MT_genes else False) for i in all_genes]
+sc.pp.calculate_qc_metrics(dat, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
+
+# visualize the distribution of cell types
+sc.pl.violin(dat, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'],jitter=0.4,multi_panel=True,save='_summary.pdf')
+sc.pl.scatter(dat, x='total_counts',y='pct_counts_mt',save='_totalCount_mt.pdf')
+sc.pl.scatter(dat, x='total_counts',y='n_genes_by_counts',save='_totalCount_genes.pdf')
+
+# Filtering cells and genes
+sc.pp.filter_cells(dat,min_genes=300)
+dat = dat[dat.obs.n_genes_by_counts < 5000,:]
+dat = dat[dat.obs.total_counts<30000,:]
+dat = dat[dat.obs.pct_counts_mt<25,:]
+sc.pp.filter_genes(dat,min_cells=3)
+sc.external.pp.scrublet(dat,expected_doublet_rate=0.05)
+dat = dat[dat.obs.predicted_doublet==False,:]
+dat = dat[dat.obs.doublet_score<0.25,:]
+
+# output the summary statistics of corresponding sample:
+mtPct = round(np.mean(dat.obs.pct_counts_mt),2)
+meanGenes = round(np.mean(dat.obs.n_genes),2)
+meanUMI = round(np.mean(dat.obs.total_counts),2)
+
+outfile = open(sample+'_summary.txt','w')
+outfile.write(sample + ' ' + str(dat.n_obs) + ' ' + str(dat.n_vars) + ' ')
+outfile.write(str(mtPct) + ' ' + str(meanGenes) + ' ' + str(meanUMI) + ' ')
+outfile.close()
+
+# visualize the distribution of cell types
+sc.pl.violin(dat, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'],jitter=0.4, multi_panel=True,save='_summary_clean.pdf')
+sc.pl.scatter(dat, x='total_counts',y='pct_counts_mt',save='_totalCount_mt_clean.pdf')
+sc.pl.scatter(dat, x='total_counts',y='n_genes_by_counts',save='_totalCount_genes_clean.pdf')
+sc.pp.normalize_total(dat,target_sum = 1e4) # normalization
+sc.pp.log1p(dat) # log transform 
+
+dat.write('/work/yangsiyu/4.dog/04.20220127_2_samples_qc/02.result/01.qc/0.h5ad/'+sample+'.h5ad')
+
+# identify highly variable genes 
+sc.pp.highly_variable_genes(dat,min_mean=0.0125,max_mean=3,min_disp=0.5)
+sc.pl.highly_variable_genes(dat,save='_highVariableGenes.pdf')
+
+#dat = dat[:,dat.var.highly_variable]
+sc.pp.regress_out(dat,['total_counts','pct_counts_mt'])
+sc.pp.scale(dat,max_value=10)
+sc.tl.pca(dat,svd_solver='arpack')
+
+#os.system('mv '+'/tmpdisk/'+sample+'.h5ad'+' '+'./')
+sc.pp.neighbors(dat,n_neighbors=10)
+sc.tl.umap(dat)
+sc.tl.louvain(dat,resolution=0.5)
+sc.pl.umap(dat,color="louvain",save='_'+sample+'_1.pdf')
+#datRaw = sc.read('/work/yangbin/'+sample+'.h5ad')
+
+
+# Find marker genes
+sc.tl.rank_genes_groups(dat,'louvain',method='wilcoxon')
+sc.pl.rank_genes_groups(dat,n_genes=25,sharey=False,save='_'+sample+'.png')
+result = dat.uns['rank_genes_groups']
+groups = result['names'].dtype.names
+markerGeneRank50 = pd.DataFrame({group + '_' + key[:1]: result[key][group] for group in groups for key in ['names', 'pvals']}).head(50)
+markerGeneRank50.to_excel(sample+'_markerGeneInfo_50.xls')
+markerGeneRank50.to_csv(sample+'_markerGeneInfo_50.csv')
+
+markerGeneRank500 = pd.DataFrame({group + '_' + key[:1]: result[key][group] for group in groups for key in ['names', 'pvals']}).head(500)
+markerGeneRank500.to_excel(sample+'_markerGeneInfo_500.xls')
+markerGeneRank500.to_csv(sample+'_markerGeneInfo_500.csv')
+
+markerGeneRank_all = pd.DataFrame({group + '_' + key[:1]: result[key][group] for group in groups for key in ['names', 'pvals']})
+markerGeneRank_all.to_excel(sample+'_markerGeneInfo_all.xls')
+markerGeneRank_all.to_csv(sample+'_markerGeneInfo_all.csv')
+
