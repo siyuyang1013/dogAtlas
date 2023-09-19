@@ -1,6 +1,6 @@
 # dogAtlas
 
-This directory contains scripts related to the manuscript "###"
+This directory contains scripts related to the manuscript "The single-nucleus transcriptomic atlas of dog brains"
 
 # software version
 
