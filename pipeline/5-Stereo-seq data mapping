@@ -1,0 +1,18 @@
+## Stereo-seq data mapping
+
+bash stereoPipeline_v6.1.sh \
+    -sif /home/guilu/software/SAW_6.1.sif \
+    -genomeSize 3 \
+    -splitCount 16 \
+    -maskFile ${maskFile} \
+    -fq1 ${fq1}  \
+    -speciesName dog \
+    -tissueType ${SampleName} \
+    -refIndex $dataDir/reference/STAR_dog \
+    -annotationFile ${annotationFile} \
+    -rRNAremove : N \
+    -threads 50 \
+    -outDir $outDir \
+    -imageRecordFile ${imageRecordFile} \
+    -imageCompressedFile ${imageCompressedFile} \
+    -doCellBin Y
