@@ -1,0 +1,19 @@
+library(Seurat)
+library(monocle)
+library(stringr)
+library(ggplot2)
+library(patchwork)
+library(dplyr)
+library(Matrix)
+library(ggsci)
+
+sce <- FindVariableFeatures(sce)
+cds = Seurat2Monocle2(sce)
+class(cds)
+
+sce <- FindVariableFeatures(sce, selection.method = "vst", nfeatures = 2000)
+express_genes <- VariableFeatures(sce)
+cds <- setOrderingFilter(cds, express_genes) 
+
+cds <- reduceDimension(cds, max_components = 2, method = 'DDRTree') 
+cds <- orderCells(cds)
